@@ -85,36 +85,18 @@ limitations under the License.
                                 var dataLoss = JSON.parse(JSON.stringify(dataAcc));
                                 dataLoss[0].name = "Loss";
 
-                                trainingData.map(function(a){
-                                   dataAcc[0].values.push({
-                                       step: a.step,
-                                       acc: a.acc
-                                   });
-                                   dataLoss[0].values.push({
-                                       step: a.step,
-                                       acc: a.loss
-                                   });
+                                trainingData.map(function (a) {
+                                    dataAcc[0].values.push({
+                                        step: a.step,
+                                        acc: a.acc
+                                    });
+                                    dataLoss[0].values.push({
+                                        step: a.step,
+                                        acc: a.loss
+                                    });
                                 });
-                                console.log("fuck " + JSON.stringify(dataLoss));
 
-                            /*    var data = [
-                                    {
-                                        name: "Training",
-                                        values: [
-                                            {step: "2000", acc: "100"},
-                                            {step: "2001", acc: "110"},
-                                            {step: "2002", acc: "145"},
-                                            {step: "2003", acc: "241"},
-                                            {step: "2004", acc: "101"},
-                                            {step: "2005", acc: "90"},
-                                            {step: "2006", acc: "10"},
-                                            {step: "2007", acc: "35"},
-                                            {step: "2008", acc: "21"},
-                                            {step: "2009", acc: "201"}
-                                        ]
-                                    }
-                                ];
-*/
+
                                 var width = 500;
                                 var height = 300;
                                 var margin = 50;
@@ -275,12 +257,6 @@ limitations under the License.
                                     .text("Total values");
 
 
-
-
-
-
-
-
                                 var parseDate = d3.timeParse("%Y");
                                 dataLoss.forEach(function (d) {
                                     d.values.forEach(function (d) {
@@ -421,29 +397,6 @@ limitations under the License.
                                     .attr("transform", "rotate(-90)")
                                     .attr("fill", "#000")
                                     .text("Total values");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
                             }
