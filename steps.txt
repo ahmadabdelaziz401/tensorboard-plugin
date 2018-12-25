@@ -1,0 +1,18 @@
+1. run python greeter_demo.py
+2. run websockify 9001 :9000
+3. run bazel server
+
+Visit the browser = all good
+
+
+
+Websockify converts ws:// protocol known by the browser to plain tcp sockets known by greeter_demo server
+bazel compiles all the javascript files before serving them meaning that with every change to greeter-dashboard.html you need to restart it 
+chrome does not through securityError like firefox, it does not enforce wss:// 
+
+Suggested solution to the data retreival problem:
+
+In greeter demo:
+1. Create a data structure that holds all the points mon_sess.run in the greeter-demo.py
+2. Create an endpoint in the serverHandler such that when a request comes should return the content of that datastructure as a json array
+3. in dashboard.html create a wiget using any js visualization framework: example d3.js to create a graph and retrieve the data using the endpoint

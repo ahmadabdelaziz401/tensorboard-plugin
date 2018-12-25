@@ -1,0 +1,624 @@
+<!--
+@license
+Copyright 2016 The TensorFlow Authors. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<link rel="import" href="../iron-icon/iron-icon.html">
+<link rel="import" href="../paper-input/paper-input.html">
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../tf-backend/tf-backend.html">
+<link rel="import" href="../tf-categorization-utils/tf-categorization-utils.html">
+<link rel="import" href="../tf-categorization-utils/tf-category-pane.html">
+<link rel="import" href="../tf-dashboard-common/dashboard-style.html">
+<link rel="import" href="../tf-dashboard-common/tf-dashboard-layout.html">
+<link rel="import" href="../tf-runs-selector/tf-runs-selector.html">
+<link rel="import" href="../tf-tensorboard/registry.html">
+<link rel="import" href="greeter-card.html">
+<style>
+    svg {
+        font-family: Sans-Serif, Arial;
+    }
+
+    .line {
+        stroke-width: 2.0px;
+        fill: none;
+    }
+
+    .axis path {
+        stroke: black;
+    }
+
+    .text {
+        font-size: 12px;
+    }
+
+    .title-text {
+        font-size: 12px;
+    }
+</style>
+
+<!--
+  A frontend that displays a set of greeter-cards.
+-->
+
+<dom-module id="greeter-dashboard">
+    <template>
+        <tf-dashboard-layout>
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <tf-runs-selector selected-runs="{{_selectedRuns}}">
+                    </tf-runs-selector>
+                </div>
+            </div>
+            </div>
+            <div class="center">
+                <template is="dom-if" if="[[_dataNotFound]]">
+                    <h1>TRAINING</h1>
+                    <paper-button on-click="start"> START</paper-button>
+                    <paper-button on-click="stop"> STOP</paper-button>
+                    <paper-button on-click="pause"> PAUSE</paper-button>
+
+                    <div class="no-data-warning">
+                        <div id="chart"></div>
+                        <script src="https://d3js.org/d3.v4.min.js"></script>
+                        <script>
+                            function drawChart(trainingData) {
+                                var myNode = document.getElementById("chart");
+                                while (myNode.firstChild) {
+                                    myNode.removeChild(myNode.firstChild);
+                                }
+
+                                var dataAcc = [
+                                    {
+                                        name: "Accuracy",
+                                        values: []
+                                    }
+                                ];
+                                var dataLoss = JSON.parse(JSON.stringify(dataAcc));
+                                dataLoss[0].name = "Loss";
+
+                                trainingData.map(function(a){
+                                   dataAcc[0].values.push({
+                                       step: a.step,
+                                       acc: a.acc
+                                   });
+                                   dataLoss[0].values.push({
+                                       step: a.step,
+                                       acc: a.loss
+                                   });
+                                });
+                                console.log("fuck " + JSON.stringify(dataLoss));
+
+                            /*    var data = [
+                                    {
+                                        name: "Training",
+                                        values: [
+                                            {step: "2000", acc: "100"},
+                                            {step: "2001", acc: "110"},
+                                            {step: "2002", acc: "145"},
+                                            {step: "2003", acc: "241"},
+                                            {step: "2004", acc: "101"},
+                                            {step: "2005", acc: "90"},
+                                            {step: "2006", acc: "10"},
+                                            {step: "2007", acc: "35"},
+                                            {step: "2008", acc: "21"},
+                                            {step: "2009", acc: "201"}
+                                        ]
+                                    }
+                                ];
+*/
+                                var width = 500;
+                                var height = 300;
+                                var margin = 50;
+                                var duration = 250;
+
+                                var lineOpacity = "0.25";
+                                var lineOpacityHover = "0.85";
+                                var otherLinesOpacityHover = "0.1";
+                                var lineStroke = "1.5px";
+                                var lineStrokeHover = "2.5px";
+
+                                var circleOpacity = '0.85';
+                                var circleOpacityOnLineHover = "0.25"
+                                var circleRadius = 3;
+                                var circleRadiusHover = 6;
+
+
+                                /* Format Data */
+                                var parseDate = d3.timeParse("%Y");
+                                dataAcc.forEach(function (d) {
+                                    d.values.forEach(function (d) {
+                                        d.step = parseDate(d.step);
+                                        d.acc = +d.acc;
+                                    });
+                                });
+
+
+                                /* Scale */
+                                var xScale = d3.scaleTime()
+                                    .domain(d3.extent(dataAcc[0].values, d => d.step))
+                                    .range([0, width - margin]);
+
+                                var yScale = d3.scaleLinear()
+                                    .domain([0, d3.max(dataAcc[0].values, d => d.acc)])
+                                    .range([height - margin, 0]);
+
+                                var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+                                /* Add SVG */
+                                var svg = d3.select("#chart").append("svg")
+                                    .attr("width", (width + margin) + "px")
+                                    .attr("height", (height + margin) + "px")
+                                    .append('g')
+                                    .attr("transform", `translate(${margin}, ${margin})`);
+
+
+                                /* Add line into SVG */
+                                var line = d3.line()
+                                    .x(d => xScale(d.step))
+                                    .y(d => yScale(d.acc));
+
+                                var lines = svg.append('g')
+                                    .attr('class', 'lines');
+
+                                lines.selectAll('.line-group')
+                                    .data(dataAcc).enter()
+                                    .append('g')
+                                    .attr('class', 'line-group')
+                                    .on("mouseover", function (d, i) {
+                                        svg.append("text")
+                                            .attr("class", "title-text")
+                                            .style("fill", color(i))
+                                            .text(d.name)
+                                            .attr("text-anchor", "middle")
+                                            .attr("x", (width - margin) / 2)
+                                            .attr("y", 5);
+                                    })
+                                    .on("mouseout", function (d) {
+                                        svg.select(".title-text").remove();
+                                    })
+                                    .append('path')
+                                    .attr('class', 'line')
+                                    .attr('d', d => line(d.values))
+                                    .style('stroke', (d, i) => color(i))
+                                    .style('opacity', lineOpacity)
+                                    .on("mouseover", function (d) {
+                                        d3.selectAll('.line')
+                                            .style('opacity', otherLinesOpacityHover);
+                                        d3.selectAll('.circle')
+                                            .style('opacity', circleOpacityOnLineHover);
+                                        d3.select(this)
+                                            .style('opacity', lineOpacityHover)
+                                            .style("stroke-width", lineStrokeHover)
+                                            .style("cursor", "pointer");
+                                    })
+                                    .on("mouseout", function (d) {
+                                        d3.selectAll(".line")
+                                            .style('opacity', lineOpacity);
+                                        d3.selectAll('.circle')
+                                            .style('opacity', circleOpacity);
+                                        d3.select(this)
+                                            .style("stroke-width", lineStroke)
+                                            .style("cursor", "none");
+                                    });
+
+
+                                /* Add circles in the line */
+                                lines.selectAll("circle-group")
+                                    .data(dataAcc).enter()
+                                    .append("g")
+                                    .style("fill", (d, i) => color(i))
+                                    .selectAll("circle")
+                                    .data(d => d.values).enter()
+                                    .append("g")
+                                    .attr("class", "circle")
+                                    .on("mouseover", function (d) {
+                                        d3.select(this)
+                                            .style("cursor", "pointer")
+                                            .append("text")
+                                            .attr("class", "text")
+                                            .text(`${d.acc}`)
+                                            .attr("x", d => xScale(d.step) + 5)
+                                            .attr("y", d => yScale(d.acc) - 10);
+                                    })
+                                    .on("mouseout", function (d) {
+                                        d3.select(this)
+                                            .style("cursor", "none")
+                                            .transition()
+                                            .duration(duration)
+                                            .selectAll(".text").remove();
+                                    })
+                                    .append("circle")
+                                    .attr("cx", d => xScale(d.step))
+                                    .attr("cy", d => yScale(d.acc))
+                                    .attr("r", circleRadius)
+                                    .style('opacity', circleOpacity)
+                                    .on("mouseover", function (d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(duration)
+                                            .attr("r", circleRadiusHover);
+                                    })
+                                    .on("mouseout", function (d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(duration)
+                                            .attr("r", circleRadius);
+                                    });
+
+
+                                /* Add Axis into SVG */
+                                var xAxis = d3.axisBottom(xScale).ticks(5);
+                                var xAxis = d3.axisBottom(xScale).ticks(5);
+                                var yAxis = d3.axisLeft(yScale).ticks(5);
+
+                                svg.append("g")
+                                    .attr("class", "x axis")
+                                    .attr("transform", `translate(0, ${height - margin})`)
+                                    .call(xAxis);
+
+                                svg.append("g")
+                                    .attr("class", "y axis")
+                                    .call(yAxis)
+                                    .append('text')
+                                    .attr("y", 15)
+                                    .attr("transform", "rotate(-90)")
+                                    .attr("fill", "#000")
+                                    .text("Total values");
+
+
+
+
+
+
+
+
+                                var parseDate = d3.timeParse("%Y");
+                                dataLoss.forEach(function (d) {
+                                    d.values.forEach(function (d) {
+                                        d.step = parseDate(d.step);
+                                        d.acc = +d.acc;
+                                    });
+                                });
+
+
+                                /* Scale */
+                                var xScale = d3.scaleTime()
+                                    .domain(d3.extent(dataLoss[0].values, d => d.step))
+                                    .range([0, width - margin]);
+
+                                var yScale = d3.scaleLinear()
+                                    .domain([0, d3.max(dataLoss[0].values, d => d.acc)])
+                                    .range([height - margin, 0]);
+
+                                var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+                                /* Add SVG */
+                                var svg = d3.select("#chart").append("svg")
+                                    .attr("width", (width + margin) + "px")
+                                    .attr("height", (height + margin) + "px")
+                                    .append('g')
+                                    .attr("transform", `translate(${margin}, ${margin})`);
+
+
+                                /* Add line into SVG */
+                                var line = d3.line()
+                                    .x(d => xScale(d.step))
+                                    .y(d => yScale(d.acc));
+
+                                var lines = svg.append('g')
+                                    .attr('class', 'lines');
+
+                                lines.selectAll('.line-group')
+                                    .data(dataLoss).enter()
+                                    .append('g')
+                                    .attr('class', 'line-group')
+                                    .on("mouseover", function (d, i) {
+                                        svg.append("text")
+                                            .attr("class", "title-text")
+                                            .style("fill", color(i))
+                                            .text(d.name)
+                                            .attr("text-anchor", "middle")
+                                            .attr("x", (width - margin) / 2)
+                                            .attr("y", 5);
+                                    })
+                                    .on("mouseout", function (d) {
+                                        svg.select(".title-text").remove();
+                                    })
+                                    .append('path')
+                                    .attr('class', 'line')
+                                    .attr('d', d => line(d.values))
+                                    .style('stroke', (d, i) => color(i))
+                                    .style('opacity', lineOpacity)
+                                    .on("mouseover", function (d) {
+                                        d3.selectAll('.line')
+                                            .style('opacity', otherLinesOpacityHover);
+                                        d3.selectAll('.circle')
+                                            .style('opacity', circleOpacityOnLineHover);
+                                        d3.select(this)
+                                            .style('opacity', lineOpacityHover)
+                                            .style("stroke-width", lineStrokeHover)
+                                            .style("cursor", "pointer");
+                                    })
+                                    .on("mouseout", function (d) {
+                                        d3.selectAll(".line")
+                                            .style('opacity', lineOpacity);
+                                        d3.selectAll('.circle')
+                                            .style('opacity', circleOpacity);
+                                        d3.select(this)
+                                            .style("stroke-width", lineStroke)
+                                            .style("cursor", "none");
+                                    });
+
+
+                                /* Add circles in the line */
+                                lines.selectAll("circle-group")
+                                    .data(dataLoss).enter()
+                                    .append("g")
+                                    .style("fill", (d, i) => color(i))
+                                    .selectAll("circle")
+                                    .data(d => d.values).enter()
+                                    .append("g")
+                                    .attr("class", "circle")
+                                    .on("mouseover", function (d) {
+                                        d3.select(this)
+                                            .style("cursor", "pointer")
+                                            .append("text")
+                                            .attr("class", "text")
+                                            .text(`${d.acc}`)
+                                            .attr("x", d => xScale(d.step) + 5)
+                                            .attr("y", d => yScale(d.acc) - 10);
+                                    })
+                                    .on("mouseout", function (d) {
+                                        d3.select(this)
+                                            .style("cursor", "none")
+                                            .transition()
+                                            .duration(duration)
+                                            .selectAll(".text").remove();
+                                    })
+                                    .append("circle")
+                                    .attr("cx", d => xScale(d.step))
+                                    .attr("cy", d => yScale(d.acc))
+                                    .attr("r", circleRadius)
+                                    .style('opacity', circleOpacity)
+                                    .on("mouseover", function (d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(duration)
+                                            .attr("r", circleRadiusHover);
+                                    })
+                                    .on("mouseout", function (d) {
+                                        d3.select(this)
+                                            .transition()
+                                            .duration(duration)
+                                            .attr("r", circleRadius);
+                                    });
+
+
+                                /* Add Axis into SVG */
+                                var xAxis = d3.axisBottom(xScale).ticks(5);
+                                var xAxis = d3.axisBottom(xScale).ticks(5);
+                                var yAxis = d3.axisLeft(yScale).ticks(5);
+
+                                svg.append("g")
+                                    .attr("class", "x axis")
+                                    .attr("transform", `translate(0, ${height - margin})`)
+                                    .call(xAxis);
+
+                                svg.append("g")
+                                    .attr("class", "y axis")
+                                    .call(yAxis)
+                                    .append('text')
+                                    .attr("y", 15)
+                                    .attr("transform", "rotate(-90)")
+                                    .attr("fill", "#000")
+                                    .text("Total values");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                            }
+
+                            drawChart([]);
+
+
+                            function wrapper() {
+                                getData(drawChart);
+                                setTimeout(wrapper, 1000);
+                            }
+
+                            wrapper();
+
+                            function getData(callback) {
+                                var socket = new WebSocket("ws://localhost:9001", "base64");
+                                socket.onopen = function (evt) {
+                                    console.log('SOcket connection created')
+                                    socket.send(btoa('{"command": "getdata"}\n'));
+                                }
+                                socket.onmessage = function (evt) {
+                                    try {
+                                        var res = atob(evt.data);
+                                        data = JSON.parse(res);
+                                        return callback(data);
+                                    } catch (e) {
+                                        console.log("Error has occured " + e);
+                                    }
+                                    socket.close()
+                                }
+                            }
+                        </script>
+                    </div>
+                </template>
+                <template is="dom-if" if="[[!_dataNotFound]]">
+                    <paper-input
+                            no-label-float
+                            label="Filter tags (regular expressions supported)"
+                            value="{{_tagFilter}}"
+                            class="search-input"
+                    >
+                        <iron-icon prefix icon="search"></iron-icon>
+                    </paper-input>
+                    <template is="dom-repeat" items="[[_categories]]" as="category">
+                        <tf-category-pane category="[[category]]">
+                            <tf-paginated-view
+                                    items="[[category.items]]"
+                                    pages="{{category._pages}}"
+                            >
+                                <template is="dom-repeat" items="[[category._pages]]" as="page">
+                                    <template is="dom-if" if="[[page.active]]">
+                                        <div class="layout horizontal wrap">
+                                            <template is="dom-repeat" items="[[page.items]]">
+                                                <greeter-card
+                                                        run="[[item.run]]"
+                                                        tag="[[item.tag]]"
+                                                        request-manager="[[_requestManager]]"
+                                                ></greeter-card>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </template>
+                            </tf-paginated-view>
+                        </tf-category-pane>
+                    </template>
+                </template>
+            </div>
+        </tf-dashboard-layout>
+
+        <style include="dashboard-style"></style>
+        <style>
+            .no-data-warning {
+                max-width: 540px;
+                margin: 80px auto 0 auto;
+            }
+        </style>
+    </template>
+
+    <script>
+        "use strict";
+        Polymer({
+            is: "greeter-dashboard",
+            start: function (event) {
+                console.log("START");
+                console.log(event);
+                var socket = new WebSocket("ws://localhost:9001", "binary");
+                socket.onopen = function (evt) {
+                    console.log('SOcket connection created')
+                    socket.send('{"command": "start"}\n');
+                }
+                socket.onmessage = function (evt) {
+                    console.log(evt.data);
+                    socket.close()
+                }
+            },
+            stop: function (event) {
+                console.log("STOP");
+                console.log(event);
+                var socket = new WebSocket("ws://localhost:9001", "binary");
+                socket.onopen = function (evt) {
+                    console.log('SOcket connection created')
+                    socket.send('{"command": "stop"}\n');
+                }
+                socket.onmessage = function (evt) {
+                    console.log(evt.data);
+                    socket.close()
+                }
+            },
+            pause: function (event) {
+                console.log("PAUSE");
+                console.log(event);
+                var socket = new WebSocket("ws://localhost:9001", "binary");
+                socket.onopen = function (evt) {
+                    console.log('SOcket connection created')
+                    socket.send('{"command": "pause"}\n');
+                }
+                socket.onmessage = function (evt) {
+                    console.log(evt.data);
+                    socket.close()
+                }
+            },
+
+            properties: {
+                _selectedRuns: Array,
+                _runToTag: Object,  // map<run: string, tags: string[]>
+                _dataNotFound: Boolean,
+                _tagFilter: {
+                    type: String,  // upward bound from paper-input
+                    value: '.*',
+                },
+                _categories: {
+                    type: Array,
+                    computed:
+                        '_makeCategories(_runToTag, _selectedRuns, _tagFilter)',
+                },
+                _requestManager: {
+                    type: Object,
+                    value: () => new tf_backend.RequestManager(),
+                },
+            },
+            ready() {
+                this.reload();
+            },
+            reload() {
+                this._fetchTags().then(() => {
+                    this._reloadCards();
+                });
+            },
+            _fetchTags() {
+                const url = tf_backend.getRouter().pluginRoute('greeter', '/tags');
+                return this._requestManager.request(url).then(runToTag => {
+                    if (_.isEqual(runToTag, this._runToTag)) {
+                        // No need to update anything if there are no changes.
+                        return;
+                    }
+                    const tags = tf_backend.getTags(runToTag);
+                    this.set('_dataNotFound', tags.length === 0);
+                    this.set('_runToTag', runToTag);
+                });
+            },
+            _reloadCards() {
+                this.querySelectorAll('greeter-card').forEach(g => {
+                    g.reload();
+                });
+            },
+            _makeCategories(runToTag, selectedRuns, tagFilter) {
+                return tf_categorization_utils.categorizeRunTagCombinations(runToTag, selectedRuns, tagFilter);
+            },
+        });
+
+        tf_tensorboard.registerDashboard({
+            plugin: 'greeter',
+            elementName: 'greeter-dashboard',
+        });
+
+    </script>
+</dom-module>
+
